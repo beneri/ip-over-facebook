@@ -84,6 +84,10 @@ class Facebook:
                 print "Sending credentials"
                 response = self.s.post('https://www.facebook.com/login.php', headers=self.headers, params=params, data=data)
 
+                if( "Two-Factor Authentication Required" in response.content ):
+                    print "Two-factor auth, using 6-digit code"
+                    self.handleTwoFactorCode()
+
                 print "Fetching username"
                 self.setUsername()
                 print "Username ", self.username
@@ -94,6 +98,7 @@ class Facebook:
                 self.setFbDtsg()
                 print "fb_dtsg ", self.fb_dtsg
                 print "Login done"
+
 
         if self.cache_file:
             print "Try writing data to cache"
@@ -108,6 +113,87 @@ class Facebook:
     def successfulLogin(self):
         response = self.s.post('https://www.facebook.com/settings', headers=self.headers)
         return not ("You must log in to continue" in response.content)
+
+    def handleTwoFactorCode(self):
+        # STEP 0: Force 6-digit code authentication
+        params = (
+            ('next', ''),
+            ('no_fido', 'true')
+        )
+
+        response = self.s.get('https://www.facebook.com/checkpoint/', headers=self.headers, params=params)
+        m = re.search('input.*?name="fb_dtsg".*?value="(.*?)"', response.content)
+        tmp_fb_dtsg =  m.group(1)
+        m = re.search('input.*?name="nh".*?value="(.*?)"', response.content)
+        tmp_nh =  m.group(1)
+
+        code = raw_input("Enter two-factor code: ")
+
+        # STEP 1: Send two factor code
+        params = (
+            ('next', ''),
+        )
+
+        data = [
+        ('fb_dtsg', tmp_fb_dtsg),
+        ('nh', tmp_nh),
+        ('approvals_code', code),
+        ('submit[Continue]', 'Continue'),
+        ]
+
+
+        print "(1/5) Sending two factor code"
+        response = self.s.post('https://www.facebook.com/checkpoint/', headers=self.headers, params=params, data=data)
+
+        # STEP 2: Save this as trusted a browser
+        print "(2/5) Saving browser"
+
+        m = re.search('input.*?name="fb_dtsg".*?value="(.*?)"', response.content)
+
+        data = [
+        ('fb_dtsg', tmp_fb_dtsg),
+        ('nh', tmp_nh),
+        ('name_action_selected', 'save_device'),
+        ('submit[Continue]', 'Continue'),
+        ]
+
+        response = self.s.post('https://www.facebook.com/checkpoint/', headers=self.headers, params=params, data=data)
+
+
+        # STEP 3: Unlock temporary lock
+        print "(3/5) Unlock temporary lock"
+        data = [
+        ('fb_dtsg', tmp_fb_dtsg),
+        ('nh', tmp_nh),
+        ('submit[Continue]', 'Continue'),
+        ]
+
+        response = self.s.post('https://www.facebook.com/checkpoint/', headers=self.headers, params=params, data=data)
+
+        # STEP 4: Login near ... "This was me"
+        print "(4/5) Strange login, yes this was me"
+        data = [
+        ('fb_dtsg', tmp_fb_dtsg),
+        ('nh', tmp_nh),
+        ('submit[This was me]', 'This was me'),
+        ]
+
+        response = self.s.post('https://www.facebook.com/checkpoint/', headers=self.headers, params=params, data=data)
+
+        # STEP 5: Save browser again
+        print "(5/5) Saving browser, again"
+        data = [
+        ('fb_dtsg', tmp_fb_dtsg),
+        ('nh', tmp_nh),
+        ('name_action_selected', 'save_device'),
+        ('submit[Continue]', 'Continue'),
+        ]
+
+        response = self.s.post('https://www.facebook.com/checkpoint/', headers=self.headers, params=params, data=data)
+
+    def handleTwoFactorFido(self):
+        print "Not implemented"
+        exit()
 
 
     def changeAbout(self, m):
