@@ -51,11 +51,13 @@ def main():
     while True:
         packet = tun.read(tun.mtu)
         logging.debug(f"Sending {packet} to facebook")
-        fb.send(packet)
+        if packet:
+            fb.send(packet)
 
-        packet = fb.recv(packet)
+        packet = fb.recv()
         logging.debug(f"Received {packet} from facebook")
-        tun.write(packet)
+        if packet:
+            tun.write(packet)
 
     tun.down()
 

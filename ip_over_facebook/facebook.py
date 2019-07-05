@@ -321,33 +321,37 @@ class Facebook:
     def send(self, data):
         logging.debug(f"Acting as a server, trying to send {len(data)} bytes")
 
-        encoded_data = base64.b64encode(data)
+        about = self.getAbout()
 
-        number_of_chunks = ceil(len(encoded_data)/self.MAXSIZE)
-        logging.debug("Splitting data into "
-                      f"{number_of_chunks} chunks of max "
-                      f"{self.MAXSIZE} bytes")
-        # We need UTF-8 strings because otherwise facebook will garble the
-        # data
-        chunks = to_chunks(encoded_data.decode('UTF-8'), self.MAXSIZE)
+        # If is not null the channel is occupied
+        if not about:
+            encoded_data = base64.b64encode(data)
 
-        # Send INIT
-        logging.debug(f"Sending init {StatusCodes.INIT} "
-                      f"{number_of_chunks}")
-        # If less than 2 digits facebook won't accept it
-        self.changeAbout(f"{StatusCodes.INIT.value:02} {number_of_chunks}")
-        wait_for_status(StatusCodes.ACK,
-                        self.getAbout)
-        for chunk in chunks:
-            logging.debug(f"Uploading {len(chunk)} bytes")
+            number_of_chunks = ceil(len(encoded_data)/self.MAXSIZE)
+            logging.debug("Splitting data into "
+                          f"{number_of_chunks} chunks of max "
+                          f"{self.MAXSIZE} bytes")
+            # We need UTF-8 strings because otherwise facebook will garble the
+            # data
+            chunks = to_chunks(encoded_data.decode('UTF-8'), self.MAXSIZE)
 
-            self.changeAbout(f"{StatusCodes.DATA:02} {chunk}")
+            # Send INIT
+            logging.debug(f"Sending init {StatusCodes.INIT} "
+                          f"{number_of_chunks}")
+            # If less than 2 digits facebook won't accept it
+            self.changeAbout(f"{StatusCodes.INIT.value:02} {number_of_chunks}")
             wait_for_status(StatusCodes.ACK,
                             self.getAbout)
+            for chunk in chunks:
+                logging.debug(f"Uploading {len(chunk)} bytes")
 
-        logging.info("Sending done")
-        self.changeAbout(f"{StatusCodes.DONE.value:02}")
-        return len(data)
+                self.changeAbout(f"{StatusCodes.DATA:02} {chunk}")
+                wait_for_status(StatusCodes.ACK,
+                                self.getAbout)
+
+            logging.info("Sending done")
+            self.changeAbout(f"{StatusCodes.DONE.value:02}")
+            return len(data)
 
     def recv(self):
         logging.debug("Acting as a client, connecting to facebook")
@@ -355,7 +359,8 @@ class Facebook:
         number_of_chunks = 0
 
         logging.debug("Waiting for init")
-        while True:
+        # 10 tries
+        for _ in range(10):
             time.sleep(0.2)
 
             # status_code number_of_chunks
@@ -364,7 +369,8 @@ class Facebook:
                 message = about.split()
                 status_code = int(message[0])
 
-                # It means that the data connection has not been initialized yet
+                # It means that the data connection has not been
+                # initialized yet
                 if number_of_chunks == 0:
                     # we initialize the number of chunks
                     if status_code == StatusCodes.INIT.value:
