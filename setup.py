@@ -15,7 +15,7 @@ classifiers = [
 ]
 
 setup(
-    name='ip-over-facebook',
+    name='ip_over_facebook',
     version=0.3,
     author="Benjamin Eriksson, Raffaele Di Campli",
     author_email="dcdrj.pub@gmail.com",
@@ -33,8 +33,8 @@ setup(
     classifiers=classifiers,
     entry_points={
         'console_scripts': [
-            'IPoF-tun=ip_over_facebook.tun:main',
-            'IPoF-send_file=ip_over_facebook.sendFile:main',
+            'IPoFB-tun=ip_over_facebook.tun:main',
+            'IPoFB-send_file=ip_over_facebook.sendFile:main',
         ]
     }
 )
