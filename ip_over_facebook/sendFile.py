@@ -1,12 +1,11 @@
 #!/usr/bin/env python3.7
-
 import time
 import argparse
 import logging
-from facebook import Facebook
+from ip_over_facebook.facebook import Facebook
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', help='server or client')
     parser.add_argument('file', help='file to send (sever) or save (client)')
@@ -37,3 +36,7 @@ if __name__ == "__main__":
                              f"{elapsed_time} seconds")
 
                 f.write(data)
+
+
+if __name__ == "__main__":
+    main()

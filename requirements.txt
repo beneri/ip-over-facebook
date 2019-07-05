@@ -1,0 +1,4 @@
+requests>=2.21.0
+python_pytun>=2.3.0
+setuptools>=40.8.0
+appdirs>=1.4.3

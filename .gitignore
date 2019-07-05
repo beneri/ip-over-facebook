@@ -1,3 +1,7 @@
 **.pyc
 __pycache__
 creds.txt
+**.egg-info
+dist/**
+cache
+creds.txt

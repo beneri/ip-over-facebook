@@ -1,7 +1,4 @@
 from setuptools import setup
-import os
-import re
-
 
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -19,28 +16,25 @@ classifiers = [
 
 setup(
     name='ip-over-facebook',
-    version=find_version("ip-over-facebook/__init__.py"),
+    version=0.3,
     author="Benjamin Eriksson, Raffaele Di Campli",
     author_email="dcdrj.pub@gmail.com",
     license='AGPLv3+',
     install_requires=[
-        "requests",
-        "appdirs",
-        "PySide2",
-        "beautifulsoup4",
-        "lxml",
-        "pyparsing",
-        "keyring",
-        "signalslot"
+        "requests>=2.21.0",
+        "python_pytun>=2.3.0",
+        "setuptools>=40.8.0",
+        "appdirs>=1.4.3"
     ],
     python_requires='>=3.7',
-    packages=['ip-over-facebook'],
+    packages=['ip_over_facebook'],
     include_package_data=True,
     description="Use facebook to send data",
     classifiers=classifiers,
     entry_points={
         'console_scripts': [
-            'polibeepsync=polibeepsync.qtgui:main',
+            'IPoF-tun=ip_over_facebook.tun:main',
+            'IPoF-send_file=ip_over_facebook.sendFile:main',
         ]
     }
 )

@@ -4,6 +4,7 @@
 - [ ] Save session token in keyring
 - [ ] Make status codes an auto increment enum
 - [ ] Create chunk class for easy data encoding/decoding
+- [ ] Implement privilege drop
 
 ## Documentation
 - [ ] Write docs
