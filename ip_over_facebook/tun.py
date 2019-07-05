@@ -39,7 +39,7 @@ def main():
                               f'pointopoint {args.server_ip} up',
                               shell=True)
     else:
-        subprocess.check_call('ifconfig {tun.name} {args.server_ip} '
+        subprocess.check_call(f'ifconfig {tun.name} {args.server_ip} '
                               f'pointopoint {args.client_ip} up',
                               shell=True)
 
