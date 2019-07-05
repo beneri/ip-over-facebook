@@ -1,49 +1,93 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python3.7
 import requests
 import time
 import base64
 import pickle
 import re
-import hashlib
 import logging
+from enum import IntEnum
+from math import ceil
+from os.path import join
+from os import makedirs
+from appdirs import user_data_dir
+
+appname = "ip-over-facebook"
+
+
+class StatusCodes(IntEnum):
+    ACK = 0,
+    DATA = 1,
+    INIT = 2,
+    DONE = 3
+
+
+# Thanks SO
+# https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
+def to_chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
+def wait_for_status(status: StatusCodes,
+                    update_function,
+                    callback_function=lambda x: True,
+                    update_interval=0.2):
+    """
+    Doesn't return until the update_function return the specified status.
+    Before returning it calls the callback_function
+    """
+    while True:
+        time.sleep(update_interval)
+        logging.debug(f"Waiting for {status}")
+
+        # status_code number_of_chunks
+        about = update_function()
+        if about:
+            message = about.split()
+            status_code = int(message[0])
+
+            if status_code == status:
+                return True
+        else:
+            raise Exception("Protocol not initialized")
 
 
 class Facebook:
-    headers = {
-        'origin': 'https://www.facebook.com',
-        'accept-encoding': 'gzip',
-        'accept-language': 'en-US,en;q=1.0',
-        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/65.0.3325.162 Safari/537.36',
-        'content-type': 'application/x-www-form-urlencoded',
-        'accept': '*/*',
-        'referer': 'https://www.facebook.com/',
-        'authority': 'www.facebook.com',
-    }
-    fb_dtsg = ''
-    username = ''
-    # Cache will store cookies, username and fb_dtsg in a file
-    cache_file = ''
-    # Must be multiple of 4 to be streamable.
-    # Other than that, the bigger the better.
-    MAXSIZE = 4*259434
-    # a unique string the client will search for
-    initStr = "initUnique"
+    def __init__(self,
+                 cache_file_path=f'{join(user_data_dir(appname), "cache")}'):
+        self.headers = {
+            'origin': 'https://www.facebook.com',
+            'accept-encoding': 'gzip',
+            'accept-language': 'en-US,en;q=1.0',
+            'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/65.0.3325.162 Safari/537.36',
+            'content-type': 'application/x-www-form-urlencoded',
+            'accept': '*/*',
+            'referer': 'https://www.facebook.com/',
+            'authority': 'www.facebook.com',
+        }
+        self.fb_dtsg = ''
+        self.username = ''
+        # Cache will store cookies, username and fb_dtsg in a file
+        self.cache_file = ''
+        # Must be multiple of 4 to be streamable.
+        # Other than that, the bigger the better.
+        self.MAXSIZE = 4*259434
 
-    def __init__(self, cf):
         self.s = requests.Session()
-        self.cache_file = cf
+        self.cache_file_path = cache_file_path
+        makedirs(user_data_dir(appname), exist_ok=True)
 
     def saveCacheToFile(self):
         cache = {'fb_dtsg': self.fb_dtsg,
                  'username': self.username,
                  'cookies': requests.utils.dict_from_cookiejar(self.s.cookies)}
-        with open(self.cache_file, 'w') as f:
+        with open(self.cache_file_path, 'wb') as f:
             pickle.dump(cache, f)
 
     def loadCacheFromFile(self):
-        with open(self.cache_file) as f:
+        with open(self.cache_file_path, 'rb') as f:
             cache = pickle.load(f)
             self.fb_dtsg = cache['fb_dtsg']
             self.username = cache['username']
@@ -53,7 +97,7 @@ class Facebook:
             return cache
 
     def login(self, u, p):
-        if self.cache_file:
+        if self.cache_file_path:
             logging.debug("Trying to load data from cache")
             cache_data = None
             try:
@@ -68,14 +112,15 @@ class Facebook:
                     self.s = requests.Session()
                 else:
                     logging.debug("Test login was sucessful")
+                    return True
 
-            except Exception:
-                logging.error("Problem reading from cache file")
+            except FileNotFoundError:
+                logging.warning("Problem reading from cache file")
 
             if not cache_data:
                 logging.warning("Could not load data from cache")
 
-                r = self.s.get("https://www.facebook.com/")
+                self.s.get("https://www.facebook.com/")
 
                 params = {
                     'login_attempt': '1',
@@ -93,7 +138,8 @@ class Facebook:
                                        params=params,
                                        data=data)
 
-                if "Two-Factor Authentication Required" in response.text:
+                # Previous versione was language dependant
+                if "approvals_code" in response.text:
                     logging.info("Two-factor auth required,"
                                  " using 6-digit code")
                     self.handleTwoFactorCode()
@@ -110,8 +156,9 @@ class Facebook:
                 self.setFbDtsg()
                 logging.debug(f"fb_dtsg: {self.fb_dtsg}")
                 logging.info("Login done")
+                return True
 
-        if self.cache_file:
+        if self.cache_file_path:
             logging.debug("Try to write data to cache")
             try:
                 self.saveCacheToFile()
@@ -213,14 +260,14 @@ class Facebook:
     def handleTwoFactorFido(self):
         raise NotImplementedError
 
-    def changeAbout(self, m):
+    def changeAbout(self, message):
         params = {
             'dpr': '1.5'
         }
 
         data = {
             'fb_dtsg': self.fb_dtsg,
-            'textarea': m,
+            'textarea': message,
             'privacy[8787635733]': '286958161406148'  # Private
             # ('privacy[8787635733]', '300645083384735'), # Public
         }
@@ -274,77 +321,74 @@ class Facebook:
     def send(self, data):
         logging.debug(f"Acting as a server, trying to send {len(data)} bytes")
 
-        encodedData = base64.b64encode(data)
+        encoded_data = base64.b64encode(data)
 
-        chunks = [encodedData[i:i+self.MAXSIZE]
-                  for i in range(len(encodedData), self.MAXSIZE)]
-        logging.debug(f"Splitting data into {len(chunks)} chunks,"
+        number_of_chunks = ceil(len(encoded_data)/self.MAXSIZE)
+        logging.debug("Splitting data into "
+                      f"{number_of_chunks} chunks of max "
                       f"{self.MAXSIZE} bytes")
+        # We need UTF-8 strings because otherwise facebook will garble the
+        # data
+        chunks = to_chunks(encoded_data.decode('UTF-8'), self.MAXSIZE)
 
-        logging.debug("Sending init")
-        self.changeAbout(f"{self.initStr} {len(chunks)}")
-
-        while(1):
-            time.sleep(0.2)
-            logging.debug("Waiting for ack")
-            about = self.getAbout()
-            if about == "ack":
-                break
-
+        # Send INIT
+        logging.debug(f"Sending init {StatusCodes.INIT} "
+                      f"{number_of_chunks}")
+        # If less than 2 digits facebook won't accept it
+        self.changeAbout(f"{StatusCodes.INIT.value:02} {number_of_chunks}")
+        wait_for_status(StatusCodes.ACK,
+                        self.getAbout)
         for chunk in chunks:
-            time.sleep(0.2)
-
             logging.debug(f"Uploading {len(chunk)} bytes")
-            hash_object = hashlib.sha256(chunk)
-            hex_dig = hash_object.hexdigest()
-            logging.debug(hex_dig)
 
-            self.changeAbout(chunk)
-            while(1):
-                time.sleep(0.2)
-                logging.debug("Waiting for ack")
-                about = self.getAbout()
-                if about == "ack":
-                    break
+            self.changeAbout(f"{StatusCodes.DATA:02} {chunk}")
+            wait_for_status(StatusCodes.ACK,
+                            self.getAbout)
 
-        logging.info("Done, sending done")
-        self.changeAbout("done")
+        logging.info("Sending done")
+        self.changeAbout(f"{StatusCodes.DONE.value:02}")
         return len(data)
 
     def recv(self):
         logging.debug("Acting as a client, connecting to facebook")
-        recvData = ""
+        recv_data = []
+        number_of_chunks = 0
 
-        while(1):
+        logging.debug("Waiting for init")
+        while True:
             time.sleep(0.2)
-            logging.debug("Waiting for init")
+
+            # status_code number_of_chunks
             about = self.getAbout()
-            if self.initStr in about:
-                (aboutInit, aboutChunks) = about.split()
-                logging.debug("Got int, sending ack. {aboutChunks} chunks"
-                              "in total")
-                logging.debug(f"Got int, sending ack. {aboutChunks}"
-                              "chunks in total")
-                self.changeAbout("ack")
-                break
+            if about:
+                message = about.split()
+                status_code = int(message[0])
 
-        while(1):
-            time.sleep(0.2)
-            logging.debug("Waiting for data")
-            about = self.getAbout()
-            if about == "done":
-                logging.debug("All done")
-                break
-            if about and about != "ack":
-                logging.debug("Got {len(about)} bytes")
+                # It means that the data connection has not been initialized yet
+                if number_of_chunks == 0:
+                    # we initialize the number of chunks
+                    if status_code == StatusCodes.INIT.value:
+                        logging.debug("Receive initialized:"
+                                      f" {message[1]} chunks in total")
+                        self.changeAbout(f"{StatusCodes.ACK.value:02}")
+                        number_of_chunks = int(message[1])
+                    # the data transfer is done
+                    elif status_code == StatusCodes.DONE.value:
+                        logging.debug("Done downloading data")
+                        # Cleanup
+                        self.changeAbout("")
+                        return b"".join(recv_data)
+                # Something went wrong
+                elif number_of_chunks < 0:
+                    raise Exception("Chunks synchronization error")
+                # we're transferring data
+                elif number_of_chunks > 0:
+                    # if we have more than 1 element in message something went
+                    # wrong
+                    if status_code == StatusCodes.DATA.value:
+                        data = message[1].encode("UTF-8")
+                        logging.debug(f"Downloading {len(data)} bytes")
+                        recv_data.append(base64.b64decode(data))
 
-                hash_object = hashlib.sha256(about)
-                hex_dig = hash_object.hexdigest()
-                print(hex_dig)
-
-                recvData += base64.b64decode(about)
-                # f.write( base64.b64decode(about) )
-                # f.flush()
-                self.changeAbout("ack")
-
-        return recvData
+                        self.changeAbout(f"{StatusCodes.ACK.value:02}")
+                        number_of_chunks -= 1

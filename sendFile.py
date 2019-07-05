@@ -19,22 +19,21 @@ if __name__ == "__main__":
         logging.getLogger().setLevel(logging.INFO)
 
     (email, password) = open("creds.txt").read().split()
-    fb = Facebook("cache.txt")
+    fb = Facebook("cache")
     login_ok = fb.login(email, password)
 
     if login_ok:
         if args.mode == "server":
             logging.info("Acting server, connecting to facebook")
-            data = open(args.file, 'rb').read()
-            fb.send(data)
+            with open(args.file, 'rb') as data:
+                fb.send(data.read())
         else:
             logging.info("Acting client, connecting to facebook")
-            f = open(args.file, 'w')
-            start_time = time.time()
-            data = fb.recv()
-            elapsed_time = time.time() - start_time
-            logging.info(f"Downloaded {len(data)} bytes in "
-                         f"f{elapsed_time} seconds")
+            with open(args.file, 'wb') as f:
+                start_time = time.time()
+                data = fb.recv()
+                elapsed_time = time.time() - start_time
+                logging.info(f"Downloaded {len(data)} bytes in "
+                             f"{elapsed_time} seconds")
 
-            f.write(data)
-            f.close()
+                f.write(data)
