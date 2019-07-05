@@ -16,6 +16,11 @@ def main():
     parser.add_argument('-m', '--mtu', default=1500)
     args = parser.parse_args()
 
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+
     # Log in to facebook
     email, password = open("creds.txt").read().split()
     fb = Facebook("cache")
