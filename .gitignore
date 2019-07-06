@@ -5,3 +5,4 @@ creds.txt
 dist/**
 cache
 creds.txt
+.coverage
