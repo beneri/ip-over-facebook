@@ -23,8 +23,6 @@ class Facebook:
             'referer': 'https://www.facebook.com/',
             'authority': 'www.facebook.com',
         }
-        self.fb_dtsg = ''
-        self.username = ''
         # Cache will store cookies, username and fb_dtsg in a file
         self.cache_file = ''
         # Must be multiple of 4 to be streamable.
