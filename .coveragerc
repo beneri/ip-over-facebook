@@ -1,3 +1,4 @@
 [run]
 omit = IPoFB/sendFile.py
        IPoFB/tun.py
+       tests/*
