@@ -1,4 +1,8 @@
-from ABC import ABC, abstractmethod
+from abc import ABC
+
+
+class PipelineNotTerminatedError(Exception):
+    pass
 
 
 class Pipeline:
@@ -38,11 +42,27 @@ class Pipeline:
 class PipelineBlock(ABC):
     """
     This class is a single processing unit that will modify the data
+    The pipeline terminator block MUST NOT call these recv and sed
     """
-    @abstractmethod
-    def recv(self):
-        pass
+    def __init__(self,
+                 previous_block=None,
+                 next_block=None):
+        self.previous_block = previous_block
+        self.next_block = next_block
 
-    @abstractmethod
+    def recv(self):
+        if self.previous_block:
+            data = self.previous_block.recv()
+            # Process data here
+            return data
+        else:
+            raise PipelineNotTerminatedError("Non terminator block used"
+                                             "for terminating pipeline")
+
     def send(self, data):
-        pass
+        # Process data here
+        if self.next_block:
+            self.next_block.send(data)
+        else:
+            raise PipelineNotTerminatedError("Non terminator block used"
+                                             "for terminating pipeline")
