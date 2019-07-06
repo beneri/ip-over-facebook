@@ -1,6 +1,20 @@
 from IPoFB.pipeline.pipeline import PipelineBlock
 
 
+class Passthrough(PipelineBlock):
+    """
+    Simple passthrough block, only relays data through the pipeline
+    """
+    def __init__(self):
+        super().__init__()
+
+    def recv(self):
+        super().recv()
+
+    def send(self, data):
+        super().send(data)
+
+
 class SimpleBinaryBuffer(PipelineBlock):
     def __init__(self):
         super().__init__()

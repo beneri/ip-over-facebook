@@ -22,21 +22,23 @@ class Pipeline:
     def __init__(self):
         self.blocks = []
 
-    def recv(self):
-        data = None
-        # This sends the data from one block to another in series
-        for block in self.blocks[-1]:
-            data = block.recv()
-            block.send(data)
+    def append_block(self, block):
+        if len(self.blocks) > 0:
+            self.blocks[-1].next_block = block
+            block.previous_block = self.blocks[-1]
+        self.blocks.append(block)
 
-        return self.blocks[-1].recv()
+    def prepend_block(self, block):
+        if len(self.blocks) > 0:
+            self.blocks[0].previous_block = block
+            block.next_block = self.blocks[0]
+        self.blocks.insert(0, block)
+
+    def recv(self):
+        return self.blocks[0].recv()
 
     def send(self, data):
-        new_data = data
-        for block in self.blocks[-1]:
-            block.send(new_data)
-            new_data = block.recv()
-        self.blocks[-1].send(new_data)
+        return self.blocks[-1].send(data)
 
 
 class PipelineBlock(ABC):
