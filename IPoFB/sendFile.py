@@ -2,7 +2,7 @@
 import time
 import argparse
 import logging
-from ip_over_facebook.facebook import Facebook
+from IPoFB.facebook import Facebook
 
 
 def main():

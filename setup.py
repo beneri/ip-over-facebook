@@ -15,7 +15,7 @@ classifiers = [
 ]
 
 setup(
-    name='ip_over_facebook',
+    name='ip-over-facebook',
     version=0.3,
     author="Benjamin Eriksson, Raffaele Di Campli",
     author_email="dcdrj.pub@gmail.com",
@@ -27,9 +27,9 @@ setup(
         "appdirs>=1.4.3"
     ],
     python_requires='>=3.7',
-    packages=['ip_over_facebook'],
+    packages=['IPoFB'],
     include_package_data=True,
-    description="Use facebook to send data",
+    description="Use facebook as a network layer",
     classifiers=classifiers,
     entry_points={
         'console_scripts': [

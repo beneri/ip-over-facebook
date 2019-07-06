@@ -3,7 +3,7 @@ import subprocess
 import argparse
 import logging
 from pytun import TunTapDevice
-from ip_over_facebook.facebook import Facebook
+from IPoFB.facebook import Facebook
 
 
 def main():
