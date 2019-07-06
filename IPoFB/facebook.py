@@ -29,28 +29,33 @@ def to_chunks(l, n):
         yield l[i:i + n]
 
 
+def get_status_code(data) -> StatusCodes:
+    if data:
+        return StatusCodes(data.split()[0])
+
+
 def wait_for_status(status: StatusCodes,
                     update_function,
                     callback_function=lambda x: True,
-                    update_interval=0.2):
+                    update_interval=0.2,
+                    timeout=5):
     """
     Doesn't return until the update_function return the specified status.
     Before returning it calls the callback_function
     """
-    while True:
-        time.sleep(update_interval)
+    start_time = time.time()
+    current_time = start_time
+
+    while current_time - start_time < timeout:
         logging.debug(f"Waiting for {status}")
+        func_status = update_function()
+        if func_status == status:
+            return True
 
-        # status_code number_of_chunks
-        about = update_function()
-        if about:
-            message = about.split()
-            status_code = int(message[0])
+        time.sleep(update_interval)
+        current_time = time.time()
 
-            if status_code == status:
-                return True
-        else:
-            raise Exception("Protocol not initialized")
+    raise TimeoutError(f"{status} waiting timed out")
 
 
 class Facebook:
@@ -341,13 +346,13 @@ class Facebook:
             # If less than 2 digits facebook won't accept it
             self.changeAbout(f"{StatusCodes.INIT.value:02} {number_of_chunks}")
             wait_for_status(StatusCodes.ACK,
-                            self.getAbout)
+                            lambda: get_status_code(self.getAbout()))
             for chunk in chunks:
                 logging.debug(f"Uploading {len(chunk)} bytes")
 
                 self.changeAbout(f"{StatusCodes.DATA:02} {chunk}")
                 wait_for_status(StatusCodes.ACK,
-                                self.getAbout)
+                                lambda: get_status_code(self.getAbout()))
 
             logging.info("Sending done")
             self.changeAbout(f"{StatusCodes.DONE.value:02}")

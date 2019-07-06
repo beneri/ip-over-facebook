@@ -1,6 +1,7 @@
 import responses
 import pytest
-from IPoFB.facebook import Facebook
+import time
+from IPoFB.facebook import Facebook, wait_for_status, StatusCodes
 
 
 @pytest.fixture
@@ -8,7 +9,55 @@ def fb(cache_file='None'):
     return Facebook(cache_file)
 
 
-class TestFacebookClass:
+def callback_assert_true():
+    assert True
+
+
+def sleep_and_return_ss(code: StatusCodes,
+                        start_time=time.time(),
+                        sleep_time: int = 5):
+
+    current_time = time.time()
+    if current_time - start_time > sleep_time:
+        return code
+
+
+class TestWaitForStatus():
+    def test_function(self):
+        try:
+            wait_for_status(StatusCodes.ACK,
+                            lambda: StatusCodes.ACK)
+        except TimeoutError:
+            assert False
+
+    def test_callback(self):
+        wait_for_status(StatusCodes.ACK,
+                        lambda: StatusCodes.ACK,
+                        callback_assert_true)
+
+    def test_timeout(self):
+        try:
+            # Testing Timeout for right code
+            start_time = time.time()
+            wait_for_status(StatusCodes.ACK,
+                            lambda: sleep_and_return_ss(StatusCodes.ACK,
+                                                        start_time,
+                                                        6))
+            assert False
+        except TimeoutError:
+            assert True
+
+        try:
+            # Testing Timeout for wrong code
+            start_time = time.time()
+            wait_for_status(StatusCodes.ACK,
+                            lambda: sleep_and_return_ss(StatusCodes.INIT,
+                                                        start_time))
+            assert False
+        except TimeoutError:
+            assert True
+
+# class TestFacebookClass:
     #@responses.activate
     #def test_uncached_login(self, tmp_path, fb):
     #    def request_callback(request):
