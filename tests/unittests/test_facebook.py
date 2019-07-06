@@ -1,7 +1,12 @@
 import responses
 import pytest
 import time
-from IPoFB.facebook import Facebook, wait_for_status, StatusCodes
+from IPoFB.facebook import (
+    Facebook,
+    wait_for_status,
+    StatusCodes,
+    get_status_code
+)
 
 
 @pytest.fixture
@@ -56,6 +61,11 @@ class TestWaitForStatus():
             assert False
         except TimeoutError:
             assert True
+
+
+class TestStatusCodes:
+    def test_zero_padded_init(self):
+        assert StatusCodes(get_status_code('01')) == StatusCodes(1)
 
 # class TestFacebookClass:
     #@responses.activate

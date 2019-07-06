@@ -31,7 +31,7 @@ def to_chunks(l, n):
 
 def get_status_code(data) -> StatusCodes:
     if data:
-        return StatusCodes(data.split()[0])
+        return StatusCodes(int(data.split()[0]))
 
 
 def wait_for_status(status: StatusCodes,
