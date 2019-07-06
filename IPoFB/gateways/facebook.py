@@ -106,8 +106,6 @@ class Facebook:
     def load_cache_from_file(self):
         with open(self.cache_file_path, 'rb') as f:
             cache = pickle.load(f)
-            self.fb_dtsg = cache['fb_dtsg']
-            self.username = cache['username']
             logging.debug(f"Got {self.fb_dtsg} {self.username}")
             self.s.cookies = requests\
                 .utils.cookiejar_from_dict(cache['cookies'])
@@ -154,7 +152,7 @@ class Facebook:
                                        params=params,
                                        data=data)
 
-                # Previous versione was language dependant
+                # Previous version was language dependant
                 if "approvals_code" in response.text:
                     logging.info("Two-factor auth required,"
                                  " using 6-digit code")
@@ -167,18 +165,17 @@ class Facebook:
                     logging.error("Error: login failed")
                     return None
 
+                logging.debug("Try to write data to cache")
+                try:
+                    self.save_cache_to_file()
+                    logging.debug("Data saved in cache")
+                except Exception:
+                    logging.warning("Could not store data in cache")
+                    return True
+
                 logging.debug("Fetching fb_dtsg")
                 logging.debug(f"fb_dtsg: {self.fb_dtsg}")
                 logging.info("Login done")
-                return True
-
-        if self.cache_file_path:
-            logging.debug("Try to write data to cache")
-            try:
-                self.save_cache_to_file()
-                logging.debug("Data saved in cache")
-            except Exception:
-                logging.warning("Could not store data in cache")
                 return True
 
     def handle_two_factor_code(self):
@@ -269,10 +266,13 @@ class Facebook:
     def handle_two_factor_fido(self):
         raise NotImplementedError
 
-    def send(self, data):
-        logging.debug(f"Sending {len(data)} bytes")
-        self.about = data
-        return len(data)
+    def send(self, data=None):
+        if data:
+            logging.debug(f"Sending {len(data)} bytes")
+            self.about = data
+            return len(data)
+        else:
+            return 0
 
     def recv(self):
         logging.debug("Receiving data")

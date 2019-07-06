@@ -37,14 +37,14 @@ class Pipeline:
     def recv(self):
         return self.blocks[0].recv()
 
-    def send(self, data):
+    def send(self, data=None):
         return self.blocks[-1].send(data)
 
 
 class PipelineBlock(ABC):
     """
     This class is a single processing unit that will modify the data
-    The pipeline terminator block MUST NOT call these recv and sed
+    The pipeline terminator block MUST NOT call these recv and send
     """
     def __init__(self,
                  previous_block=None,
@@ -61,7 +61,7 @@ class PipelineBlock(ABC):
             raise PipelineNotTerminatedError("Non terminator block used"
                                              "for terminating pipeline")
 
-    def send(self, data):
+    def send(self, data=None):
         # Process data here
         if self.next_block:
             self.next_block.send(data)

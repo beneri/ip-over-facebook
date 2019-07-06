@@ -5,33 +5,14 @@ import base64
 import pickle
 import re
 import logging
-from enum import IntEnum
 from math import ceil
 from os.path import join
 from os import makedirs
 from appdirs import user_data_dir
+from IPoFB.packets import (StatusCodes, get_status_code, PacketFactory,
+                           EmptyDataError)
 
 appname = "ip-over-facebook"
-
-
-class StatusCodes(IntEnum):
-    ACK = 0,
-    DATA = 1,
-    INIT = 2,
-    DONE = 3
-
-
-# Thanks SO
-# https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
-def to_chunks(l, n):
-    """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
-
-
-def get_status_code(data) -> StatusCodes:
-    if data:
-        return StatusCodes(int(data.split()[0]))
 
 
 def wait_for_status(status: StatusCodes,
@@ -79,6 +60,9 @@ class Facebook:
         # Must be multiple of 4 to be streamable.
         # Other than that, the bigger the better.
         self.MAXSIZE = 4*259434
+
+        # Manages packet encoding/decoding
+        self.packet_factory = PacketFactory()
 
         self.s = requests.Session()
         self.cache_file_path = cache_file_path
@@ -358,48 +342,50 @@ class Facebook:
             self.changeAbout(f"{StatusCodes.DONE.value:02}")
             return len(data)
 
-    def recv(self):
-        logging.debug("Acting as a client, connecting to facebook")
+    def recv(self, num_of_bytes=None):
+        logging.debug("Receiving data")
         recv_data = []
         number_of_chunks = 0
 
-        logging.debug("Waiting for init")
-        # 10 tries
-        for _ in range(10):
-            time.sleep(0.2)
+        # status_code number_of_chunks
+        data = self.getAbout()
 
-            # status_code number_of_chunks
-            about = self.getAbout()
-            if about:
-                message = about.split()
-                status_code = int(message[0])
 
-                # It means that the data connection has not been
-                # initialized yet
-                if number_of_chunks == 0:
-                    # we initialize the number of chunks
-                    if status_code == StatusCodes.INIT.value:
-                        logging.debug("Receive initialized:"
-                                      f" {message[1]} chunks in total")
-                        self.changeAbout(f"{StatusCodes.ACK.value:02}")
-                        number_of_chunks = int(message[1])
-                    # the data transfer is done
-                    elif status_code == StatusCodes.DONE.value:
-                        logging.debug("Done downloading data")
-                        # Cleanup
-                        self.changeAbout("")
-                        return b"".join(recv_data)
-                # Something went wrong
-                elif number_of_chunks < 0:
-                    raise Exception("Chunks synchronization error")
-                # we're transferring data
-                elif number_of_chunks > 0:
-                    # if we have more than 1 element in message something went
-                    # wrong
-                    if status_code == StatusCodes.DATA.value:
-                        data = message[1].encode("UTF-8")
-                        logging.debug(f"Downloading {len(data)} bytes")
-                        recv_data.append(base64.b64decode(data))
+        try:
+            recv_pkt = self.packet_factory.decode(data)
+        except EmptyDataError:
+            pass
 
-                        self.changeAbout(f"{StatusCodes.ACK.value:02}")
-                        number_of_chunks -= 1
+        status_code = get_status_code(data)
+        if status_code:
+            message = data.split()
+
+            # It means that the data connection has not been
+            # initialized yet
+            if number_of_chunks == 0:
+                # we initialize the number of chunks
+                if status_code == StatusCodes.INIT.value:
+                    logging.debug("Receive initialized:"
+                                  f" {message[1]} chunks in total")
+                    self.changeAbout(f"{StatusCodes.ACK.value:02}")
+                    number_of_chunks = int(message[1])
+                # the data transfer is done
+                elif status_code == StatusCodes.DONE.value:
+                    logging.debug("Done downloading data")
+                    # Cleanup
+                    self.changeAbout("")
+                    return b"".join(recv_data)
+            # Something went wrong
+            elif number_of_chunks < 0:
+                raise Exception("Chunks synchronization error")
+            # we're transferring data
+            elif number_of_chunks > 0:
+                # if we have more than 1 element in message something went
+                # wrong
+                if status_code == StatusCodes.DATA.value:
+                    data = message[1].encode("UTF-8")
+                    logging.debug(f"Downloading {len(data)} bytes")
+                    recv_data.append(base64.b64decode(data))
+
+                    self.changeAbout(f"{StatusCodes.ACK.value:02}")
+                    number_of_chunks -= 1

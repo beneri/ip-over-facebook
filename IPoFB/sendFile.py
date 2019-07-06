@@ -2,7 +2,11 @@
 import time
 import argparse
 import logging
-from IPoFB.gateways.facebook import Facebook
+import os
+from IPoFB.pipeline.gateways import FacebookGatewayBlock
+from IPoFB.pipeline.encoders import Base64Encoder
+from IPoFB.pipeline.buffers import FileBinaryBuffer
+from IPoFB.pipeline.pipeline import Pipeline
 
 
 def main():
@@ -18,23 +22,24 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
 
     (email, password) = open("creds.txt").read().split()
-    fb = Facebook("cache")
-    login_ok = fb.login(email, password)
 
-    if login_ok:
-        if args.mode == "send":
-            logging.info(f"Sending file {args.file}")
-            with open(args.file, 'rb') as data:
-                fb.send(data.read())
-        else:
-            logging.info(f"Receiving file {args.file}")
-            with open(args.file, 'wb') as f:
-                start_time = time.time()
-                for data_chunk in fb.recv():
-                    f.write(data_chunk)
-                elapsed_time = time.time() - start_time
-                logging.info(f"Downloaded {len(data)} bytes in "
-                             f"{elapsed_time} seconds")
+    pipeline = Pipeline()
+    pipeline.append_block(FileBinaryBuffer(args.file))
+    pipeline.append_block(Base64Encoder())
+    pipeline.append_block(FacebookGatewayBlock(email, password))
+
+    if args.mode == "send":
+        logging.info(f"Sending file {args.file}")
+        # Sends file
+        pipeline.send()
+    else:
+        logging.info(f"Receiving file {args.file}")
+        start_time = time.time()
+        # Downloads to file
+        pipeline.recv()
+        elapsed_time = time.time() - start_time
+        logging.info(f"Downloaded {os.stat(args.file).st_size} bytes in "
+                     f"{elapsed_time} seconds")
 
 
 if __name__ == "__main__":

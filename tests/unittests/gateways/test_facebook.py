@@ -58,7 +58,10 @@ class TestFacebook:
     @staticmethod
     def fake_username_callback(request, username='test'):
         TestFacebook.are_valid_headers(request.headers)
-        return (200, None, username)
+        return (200,
+                None,
+                f'_2s25 _606w" href="https://www.facebook.com/{username}"'
+                )
 
     @staticmethod
     def fake_login_callback(request, ret_value=True):
@@ -130,15 +133,20 @@ class TestFacebook:
             callback=lambda req: TestFacebook.fake_recv(req, 'test'))
         fb.send('test')
 
+    def test_send_none(self, fb):
+        fb.send()
+
 #    def test_recv(self, fb):
 #        responses.add_callback(
 #            responses.GET,
 #            'https://facebook.com/',
 #            callback=lambda req: TestFacebook
 #            .fake_username_callback(req, 'test'))
+#        print(fb.username)
+#        assert False
 #
-#        responses.add_callback(
-#            responses.GET,
-#            'https://m.facebook.com/test/about?section=bio',
-#            callback=lambda req: TestFacebook.fake_send(req, 'test2'))
-#        assert fb.recv() == 'test2'
+    #    responses.add_callback(
+    #        responses.GET,
+    #        'https://m.facebook.com/test/about?section=bio',
+    #        callback=lambda req: TestFacebook.fake_send(req, 'test2'))
+    #    assert fb.recv() == 'test2'
