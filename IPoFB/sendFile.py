@@ -2,7 +2,7 @@
 import time
 import argparse
 import logging
-from IPoFB.facebook import Facebook
+from IPoFB.gateways.facebook import Facebook
 
 
 def main():
@@ -22,20 +22,19 @@ def main():
     login_ok = fb.login(email, password)
 
     if login_ok:
-        if args.mode == "server":
-            logging.info("Acting server, connecting to facebook")
+        if args.mode == "send":
+            logging.info(f"Sending file {args.file}")
             with open(args.file, 'rb') as data:
                 fb.send(data.read())
         else:
-            logging.info("Acting client, connecting to facebook")
+            logging.info(f"Receiving file {args.file}")
             with open(args.file, 'wb') as f:
                 start_time = time.time()
-                data = fb.recv()
+                for data_chunk in fb.recv():
+                    f.write(data_chunk)
                 elapsed_time = time.time() - start_time
                 logging.info(f"Downloaded {len(data)} bytes in "
                              f"{elapsed_time} seconds")
-
-                f.write(data)
 
 
 if __name__ == "__main__":
