@@ -6,6 +6,9 @@
 - [X] Improve code quality by using PEP8 and snake case
 - [X] Create chunk class for easy data encoding/decoding (Implemented through pipelines)
 
+## Architecture
+- [ ] Move data chunking from FBProtoFSM to Pipeline
+
 ## Documentation
 - [ ] Write docs
 
