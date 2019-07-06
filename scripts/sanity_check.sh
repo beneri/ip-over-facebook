@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
-flake8
-pytest --cov IPoFB
+root=$(git rev-parse --show-toplevel)
+
+flake8 "$root"
+py.test --cov IPoFB "$root/tests"
+exit $?
