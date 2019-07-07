@@ -1,5 +1,3 @@
-import time
-import logging
 from dataclasses import dataclass
 from enum import IntEnum
 
@@ -13,7 +11,6 @@ class StatusCodes(IntEnum):
 
 class EmptyDataError(Exception):
     pass
-
 
 
 class BusyChannelError(Exception):
