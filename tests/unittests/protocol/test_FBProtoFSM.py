@@ -1,6 +1,6 @@
 import responses
 import pytest
-from IPoFB.protocol.packets import (
+from IPoFB.protocol.state_machines import (
     FBProtoFSM
 )
 
