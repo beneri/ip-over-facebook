@@ -27,11 +27,12 @@ class SimpleBinaryBuffer(PipelineBlock):
         self._buffer += data
 
 
+# Should create a PipelineBlockTerminator class for clarity's sake
+# This class has a strange working logic, must be made clearer
 class FileBinaryBuffer(PipelineBlock):
     def __init__(self, filename='buffer', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.filename = filename
-        self._buffer = b''
 
     def recv(self):
         with open(self.filename, 'rb') as f:

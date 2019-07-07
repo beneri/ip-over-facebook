@@ -10,6 +10,9 @@ class Pipeline:
     This class manages the data streams. basically it chains differents
     Pipeline blocks into a single pipeline so that data is processed
     before being sent or received
+    Pipelines are bidirectionals, so when you recv it starts reading data
+    from the last block and when you send it start sending data from the
+    first block
     :field blocks: Contains the single PipelineBlocks
     EG:
         Receveing pipeline:
@@ -35,10 +38,19 @@ class Pipeline:
         self.blocks.insert(0, block)
 
     def recv(self):
+        """
+        Read data from pipeline
+        The data will be pulled from the last block automatically
+        """
         return self.blocks[0].recv()
 
     def send(self, data=None):
-        return self.blocks[-1].send(data)
+        """
+        Write data to pipeline
+        The data will be sent to the first block, then it will be forwarded
+        to all the successive blocks
+        """
+        return self.blocks[0].send(data)
 
 
 class PipelineBlock(ABC):
@@ -53,8 +65,11 @@ class PipelineBlock(ABC):
         self.next_block = next_block
 
     def recv(self):
-        if self.previous_block:
-            data = self.previous_block.recv()
+        """
+        Read data from block
+        """
+        if self.next_block:
+            data = self.next_block.recv()
             # Process data here
             return data
         else:
@@ -62,6 +77,10 @@ class PipelineBlock(ABC):
                                              "for terminating pipeline")
 
     def send(self, data=None):
+        """
+        Processe the sent data
+        :param data: Data to be processed
+        """
         # Process data here
         if self.next_block:
             self.next_block.send(data)
