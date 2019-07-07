@@ -62,7 +62,9 @@ class FBProtoFSM:
         self._gateway = Facebook()
         self._chunks = None
         self._state = FSMStates.IDLE
-        self._packet_facttory = PacketFactory()
+        self._packet_factory = PacketFactory()
+
+        self._gateway.login('user', 'pw')
 
     def _init_data_send(self, data):
         """
@@ -83,7 +85,6 @@ class FBProtoFSM:
             # Send INIT
             init_pkt = InitPacket(self._number_of_chunks)
             logging.debug(f"Sending {init_pkt}")
-            # If less than 2 digits facebook won't accept it
             self._gateway.about = f"{init_pkt.padded_status_code} "\
                 "{self._number_of_chunks}"
             try:

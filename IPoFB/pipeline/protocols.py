@@ -1,5 +1,5 @@
 from IPoFB.pipeline.pipeline import PipelineBlock
-from IPoFB.protocol.packets import FBProtoFSM
+from IPoFB.protocol.state_machines import FBProtoFSM
 
 
 class FBProto(PipelineBlock):
