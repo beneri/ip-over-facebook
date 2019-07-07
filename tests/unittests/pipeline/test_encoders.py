@@ -20,7 +20,7 @@ class TestBase64Encoder:
     def test_recv(self, pipeline_buffer):
         test_data = b'This is a test string'
         pipeline_buffer._buffer = base64.b64encode(test_data)
-        encoder = Base64Encoder(previous_block=pipeline_buffer)
+        encoder = Base64Encoder(next_block=pipeline_buffer)
         assert encoder.recv() == test_data
 
 

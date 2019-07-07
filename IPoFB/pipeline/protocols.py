@@ -14,5 +14,5 @@ class FBProto(PipelineBlock):
         super().recv()
 
     def send(self, data):
-        super().send(data)
         self._protocol.init_data_send(data)
+        super().send(data)
