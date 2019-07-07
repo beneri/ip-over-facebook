@@ -6,11 +6,14 @@ from enum import IntEnum
 from IPoFB.gateways.facebook import Facebook
 
 
+# The less status codes the better
 class StatusCodes(IntEnum):
     ACK = 0,
     INIT = 1,
+    DATA = 2
 
 
+# The less states the better
 class FSMStates(IntEnum):
     IDLE = 0,
     INITIALIZING = 1,
@@ -23,6 +26,14 @@ class EmptyDataError(Exception):
 
 
 class InvalidStateError(Exception):
+    pass
+
+
+class BusyChannelError(Exception):
+    pass
+
+
+class InvalidPacketDataError(Exception):
     pass
 
 
@@ -40,7 +51,18 @@ class Packet:
 class InitPacket(Packet):
     number_of_chunks: int
 
+    def __init__(self, number_of_chunks):
+        super().__init__(StatusCodes.INIT)
+        self.number_of_chunks = number_of_chunks
 
+
+@dataclass
+class DataPacket(Packet):
+    data: bytes
+
+    def __init__(self, data):
+        super().__init__(StatusCodes.DATA)
+        self.data = data
 
 
 # Thanks SO
@@ -88,28 +110,30 @@ def wait_for_status(status: StatusCodes,
 
 
 class PacketFactory:
-    def __init__(self,
-                 input_pipeline=None,
-                 output_pipeline=None):
-        self.input_pipeline = input_pipeline
-        self.output_pipeline = output_pipeline
-
     def decode_packet(self, data: bytes) -> Packet:
-        data = self.getAbout()
-        status_code = get_status_code(data)
-        if status_code == StatusCodes.DATA:
-            return DataPacket(status_code,
-                              get_data(data))
+        data_str = data.decode('UTF-8')
+        data_list = data_str.split()
+        status_code = int(data_list[0])
+        if status_code == StatusCodes.INIT:
+            return InitPacket(int(data_list[1]))
+        elif status_code == StatusCodes.ACK:
+            return Packet(StatusCodes.ACK)
+        elif status_code == StatusCodes.DATA:
+            return DataPacket(data.split()[1])
         else:
-            return Packet(status_code)
+            raise InvalidPacketDataError(f"Invalid status code: {status_code}")
 
     def encode_packet(self, packet: Packet) -> bytes:
         status_code = packet.status_code
-        if status_code == StatusCodes.DATA:
-            # Need to encode string
-            return f"{StatusCodes.DATA.value:02} {packet.data}"
+        if status_code == StatusCodes.INIT:
+            return f'{status_code:02} {packet.number_of_chunks}'\
+                    .encode('UTF-8')
+        elif status_code == StatusCodes.ACK:
+            return f'{status_code:02}'.encode('UTF-8')
+        elif status_code == StatusCodes.DATA:
+            return f'{status_code:02} {packet.data}'.encode('UTF-8')
         else:
-            pass
+            raise InvalidPacketDataError(f"Invalid status code: {status_code}")
 
 
 class FBProtoFSM:
@@ -124,6 +148,7 @@ class FBProtoFSM:
         self._gateway = Facebook()
         self._chunks = None
         self._state = FSMStates.IDLE
+        self._packet_facttory = PacketFactory()
 
     def _init_data_send(self, data):
         """
@@ -152,11 +177,22 @@ class FBProtoFSM:
                                 lambda: get_status_code(self._gateway.about))
             except TimeoutError:
                 logging.debug("Init ack timed out")
+                # The machine state is reset
                 self._state = FSMStates.IDLE
+
             logging.debug('Init acknowledged')
             self._state = FSMStates.SENDING
         else:
-            raise Exception("Channel not free")
+            raise BusyChannelError("Channel not free")
+
+    def _init_data_recv(self):
+        """
+        Initializes the data receiving state
+        """
+        wait_for_status(StatusCodes.INIT,
+                        lambda: get_status_code(self._gateway.about))
+
+        pass
 
     def _send_chunk(self, chunk):
         logging.debug(f"Sending {len(chunk)} bytes")
