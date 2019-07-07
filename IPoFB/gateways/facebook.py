@@ -25,9 +25,6 @@ class Facebook:
         }
         # Cache will store cookies, username and fb_dtsg in a file
         self.cache_file = ''
-        # Must be multiple of 4 to be streamable.
-        # Other than that, the bigger the better.
-        self.MAXSIZE = 4*259434
 
         self.s = requests.Session()
         self.cache_file_path = cache_file_path

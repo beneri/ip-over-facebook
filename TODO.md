@@ -1,4 +1,5 @@
 ## Sane development
+- [ ] Finish implementing FSM and relative tests
 - [ ] Save session token in keyring
 - [ ] Make status codes an auto increment enum
 - [ ] Implement privilege drop
